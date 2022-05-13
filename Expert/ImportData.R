@@ -35,18 +35,17 @@ GenerateDiscernibilityMatrix <- function(decisionTable) {
   return(discernibilityMatrix)
 }
 
-GenerateAllReducts <- function(discernibilityMatrix) {
-  # Generate reducts based on discernibility matrix
-  reducts <- FS.all.reducts.computation(discernibilityMatrix)
+GenerateReductObject <- function(decisionTable.discretized) {
+  # Generate reducts based on discretized discernibility matrix
+  reducts <- FS.quickreduct.RST(decisionTable.discretized)
   
   return(reducts)
 }
 
-GetSingleReduct <- function(reducts) {
+GetSingleReduct <- function(reductsObject) {
   # Get single reduct from reducts object and convert it to list of its
   # member symptoms
-  reductObject <- tail(reducts$decision.reduct, n = 1)
-  reductElements <- as.list(reductObject$reduct$reduct)
+  reductElements <- as.list(reductsObject$reduct)
   reduct <- as.list(names(reductElements))
   
   return(reduct)
@@ -64,6 +63,7 @@ ExportReductToCsv <- function(fileName, reduct) {
               sep = ";")
 }
 
+fileName <- "asthma.csv"
 ParseExpertDataSingleFile <- function(fileName) {
   # Parse data provided by expert, generate reducts and export them to CSV file
   
@@ -74,15 +74,15 @@ ParseExpertDataSingleFile <- function(fileName) {
   # Generate discernibility matrix
   discernibilityMatrix <- GenerateDiscernibilityMatrix(decisionTable)
   
-  # Generate reducts
-  reducts <- GenerateAllReducts(discernibilityMatrix)
-  
   # Discretize decision table
   cutValues <- D.discretization.RST(decisionTable, type.method = "unsupervised.quantiles")
   decisionTable.discretized <- SF.applyDecTable(decisionTable, cutValues)
   
+  # Generate reducts
+  reducts <- GenerateReductObject(decisionTable.discretized)
+  
   # Generate rules for predicting
-  rules <- RI.indiscernibilityBasedRules.RST(decisionTable.discretized, reducts[[1]][[1]])
+  rules <- RI.indiscernibilityBasedRules.RST(decisionTable.discretized, reducts)
 
   # Prepare prediction function
   predict.disease <- function(symptomTable, rules, cutValues) {
