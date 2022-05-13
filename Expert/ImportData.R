@@ -8,6 +8,7 @@ gOutputDirectory <- "./Output"
 # ------------------------------ Import libraries ------------------------------ 
 library(RoughSets)
 library(data.table)
+library(dplyr)
 
 # --------------------------------- Functions ----------------------------------
 
@@ -108,8 +109,9 @@ ParseExpertDataSingleFile <- function(fileName) {
 GenerateSymptomTable <- function(symptoms, decisionTable) {
   symptomTable <- decisionTable[1,]
   symptomTable[] <- 0
+  allowed <- colnames(symptomTable)
   for(symptom in symptoms)
-    symptomTable[symptom] <- 1
+    if(symptom %in% allowed) symptomTable[symptom] <- 1
   return(symptomTable)
 }
 
@@ -134,8 +136,7 @@ ParseExpertDataAllFiles <- function(symptoms) {
 }
 
 # ---------------------------------- Script ------------------------------------
-symptoms1 <- c("S1", "S2", "S3")
-symptoms2 <- c("S1", "S3", "S4")
-
+symptoms1 <- c("asthenia", "non.productive.cough", "pain.chest", "rale", "shortness.of.breath")
+symptoms2 <- c("constipation", "fever", "nausea", "pain.back", "throat.sore", "vomiting")
 ParseExpertDataAllFiles(symptoms1)
 ParseExpertDataAllFiles(symptoms2)
