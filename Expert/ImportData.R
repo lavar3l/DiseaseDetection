@@ -77,14 +77,43 @@ ParseExpertDataSingleFile <- function(fileName) {
   # Generate reducts
   reducts <- GenerateAllReducts(discernibilityMatrix)
   
+  # Discretize decision table
+  cutValues <- D.discretization.RST(decisionTable, type.method = "unsupervised.quantiles")
+  decisionTable.discretized <- SF.applyDecTable(decisionTable, cutValues)
+  
+  # Generate rules for predicting
+  rules <- RI.indiscernibilityBasedRules.RST(decisionTable.discretized, reducts[[1]][[1]])
+
+  # Prepare prediction function
+  predict.disease <- function(symptomTable, rules, cutValues) {
+    symptomTable.discretized <- SF.applyDecTable(symptomTable, cutValues)
+    return(predict(rules, symptomTable.discretized))
+  }
+  
   # Prepare reduct for export
   reduct <- GetSingleReduct(reducts)
   
   # Export reduct to CSV as a list of symptoms
   ExportReductToCsv(paste(gOutputDirectory, fileName, sep = "/"), reduct)
+  
+  # Return generated data
+  return(list(
+    decisionTable = decisionTable,
+    rules = rules,
+    cutValues = cutValues,
+    predict = predict.disease
+  ))
 }
 
-ParseExpertDataAllFiles <- function() {
+GenerateSymptomTable <- function(symptoms, decisionTable) {
+  symptomTable <- decisionTable[1,]
+  symptomTable[] <- 0
+  for(symptom in symptoms)
+    symptomTable[symptom] <- 1
+  return(symptomTable)
+}
+
+ParseExpertDataAllFiles <- function(symptoms) {
   # Parse data provided by expert for all files from provided input directory,
   # generate reducts and export them to CSV files in provided output directory.
   
@@ -96,9 +125,17 @@ ParseExpertDataAllFiles <- function() {
   # Parse all files
   for(fileName in fileList) {
     print(paste("Parsing:", fileName, sep = " "))
-    ParseExpertDataSingleFile(fileName)
+    predictionData <- ParseExpertDataSingleFile(fileName)
+    
+    # Convert symptoms to decision table form and make prediction
+    symptomTable <- GenerateSymptomTable(symptoms, predictionData$decisionTable)
+    print(predictionData$predict(symptomTable, predictionData$rules, predictionData$cutValues))
   }
 }
 
 # ---------------------------------- Script ------------------------------------
-ParseExpertDataAllFiles()
+symptoms1 <- c("S1", "S2", "S3")
+symptoms2 <- c("S1", "S3", "S4")
+
+ParseExpertDataAllFiles(symptoms1)
+ParseExpertDataAllFiles(symptoms2)
