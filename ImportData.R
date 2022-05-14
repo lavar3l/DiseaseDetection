@@ -1,4 +1,4 @@
-# DiseaseDetection system expert
+# DiseaseDetection expert system
 # Script for parsing data provided by an expert
 
 # ----------------------------- Global parameters ------------------------------
@@ -76,7 +76,8 @@ ParseExpertDataSingleFile <- function(fileName) {
   discernibilityMatrix <- GenerateDiscernibilityMatrix(decisionTable)
   
   # Discretize decision table
-  cutValues <- D.discretization.RST(decisionTable, type.method = 'unsupervised.quantiles')
+  cutValues <- D.discretization.RST(decisionTable, 
+                                    type.method = 'unsupervised.quantiles')
   decisionTable.discretized <- SF.applyDecTable(decisionTable, cutValues)
   
   # Generate reducts
@@ -120,7 +121,8 @@ GetAvailableSymptoms <- function() {
                          pattern = '*.csv',
                          full.names = FALSE)
 
-  file <- read.csv(file = paste(gInputDirectory, fileList[1], sep = '/'), sep = ';')
+  file <- read.csv(file = paste(gInputDirectory, fileList[1], sep = '/'), 
+                                                                      sep = ';')
 
   symptoms <- names(file)
   symptoms <- symptoms[-length(symptoms)]
@@ -156,7 +158,7 @@ ParseExpertDataAllFiles <- function() {
   return(result)
 }
 
-# ---------------------------------- Script ------------------------------------
+# ------------------------------- Test script ----------------------------------
 # symptoms1 <- c('asthenia', 'non.productive.cough', 'pain.chest', 'rale', 'shortness.of.breath')
 # symptoms2 <- c('constipation', 'fever', 'nausea', 'pain.back', 'throat.sore', 'vomiting')
 # ParseExpertDataAllFiles(symptoms1)

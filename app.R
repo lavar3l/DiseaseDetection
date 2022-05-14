@@ -1,3 +1,6 @@
+# DiseaseDetection expert system
+# Web application for users to detect disease based on provided symptoms
+
 library(shiny)
 library(stringr)
 
