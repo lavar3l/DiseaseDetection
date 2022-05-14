@@ -130,3 +130,6 @@ dmypy.json
 .Rproj.user
 
 .idea
+
+# Project specific files and directories
+.Rhistory
