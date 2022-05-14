@@ -95,8 +95,8 @@ ParseExpertDataSingleFile <- function(fileName) {
   # Prepare reduct for export
   reduct <- GetSingleReduct(reducts)
   
-  # Export reduct to CSV as a list of symptoms
-  ExportReductToCsv(paste(gOutputDirectory, fileName, sep = '/'), reduct)
+  # Export reduct to CSV as a list of symptoms (for debug purposes only)
+  # ExportReductToCsv(paste(gOutputDirectory, fileName, sep = '/'), reduct)
   
   # Return generated data
   return(list(
