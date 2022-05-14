@@ -133,3 +133,4 @@ dmypy.json
 
 # Project specific files and directories
 .Rhistory
+Output/*
