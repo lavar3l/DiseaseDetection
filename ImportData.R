@@ -64,7 +64,6 @@ ExportReductToCsv <- function(fileName, reduct) {
               sep = ';')
 }
 
-fileName <- 'asthma.csv'
 ParseExpertDataSingleFile <- function(fileName) {
   # Parse data provided by expert, generate reducts and export them to CSV file
   
@@ -129,11 +128,21 @@ GetAvailableSymptoms <- function() {
   return(symptoms)
 }
 
-ParseCoefficients <- function() {
+ParseCoefficientFile <- function(fileName) {
   directory <- paste(gInputDirectory, 'Coefficients', sep = '/')
+  return(read.csv(paste(directory, fileName, sep = '/'), sep = ';'))
+}
 
-  return(read.csv(paste(directory, 'data.csv', sep = '/'), sep = ';'))
+ParseCoefficients <- function() {
+  return(ParseCoefficientFile('data.csv'))
+}
 
+ParseRisks <- function() {
+  return(ParseCoefficientFile('risk.csv'))
+}
+
+ParseRiskFactors <- function() {
+  return(ParseCoefficientFile('riskFactors.csv'))
 }
 
 ParseExpertDataAllFiles <- function() {

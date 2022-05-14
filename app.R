@@ -3,12 +3,15 @@
 
 library(shiny)
 library(stringr)
+library(plotly)
 
 source('ImportData.R')
 
 predictionData <- ParseExpertDataAllFiles()
 availableSymptoms <- GetAvailableSymptoms()
 coefficients <- ParseCoefficients()
+risks <- ParseRisks()
+riskFactors <- ParseRiskFactors()
 
 # Parse input to list of occuring symptoms
 GetOccurringSymptoms <- function (input, symptopms) {
@@ -22,11 +25,10 @@ GetOccurringSymptoms <- function (input, symptopms) {
 # Generate select input for provided symptom id
 YesNoSelect <- function (inputId) {
   readableLabel <- str_to_title(str_replace_all(inputId, '\\.', ' '))
-  default <- ifelse(inputId %in% c('asthenia', 'non.productive.cough', 'pain.chest', 'rale', 'shortness.of.breath'), 'yes', 'no')
   return(
     selectInput(inputId, h5(readableLabel),
                 choices = list("Yes" = 'yes',
-                               "No" = 'no'), selected = default))
+                               "No" = 'no'), selected = 'no'))
 }
 
 # Generate inputs for all symptoms
@@ -45,22 +47,48 @@ GenerateInputs <- function (symptopms) {
   }))
 }
 
-GetDiseaseIndex <- function(disease) {
-  diseaseRow <- coefficients$Disease;
-  return(match(disease, diseaseRow))
+# Convert from char to numeric
+ConvertToNumeric <- function(dec) {
+  return(as.numeric(sub(",", ".", dec)))
 }
 
-GetSymptoDiseaseWeight <- function(symptom, disease) {
-  diseaseIndex <- GetDiseaseIndex(disease)
+# Get specified sympton and disease weight
+GetSymptomDiseaseWeight <- function(symptom, disease) {
+  diseaseRow <- coefficients$Disease;
+  diseaseIndex <- match(disease, diseaseRow)
   weight <- coefficients[[symptom]][diseaseIndex]
   if (is.na(weight)) return(0)
-  return(as.numeric(sub(",", ".", weight)))
+  return(ConvertToNumeric(weight))
 }
 
+# Get min and max disease risk
+GetDiseaseRisks <- function(disease) {
+  diseaseRow <- risks$X;
+  diseaseIndex <- match(disease, diseaseRow)
+  return(list(
+    min = ConvertToNumeric(risks$min[diseaseIndex]),
+    max = ConvertToNumeric(risks$max[diseaseIndex])
+  ))
+}
+
+# Get disease risk factors average
+GetDiseaseRiskFactorsAvg <- function(disease) {
+  diseaseRow <- riskFactors$Risk.factor;
+  diseaseIndex <- match(disease, diseaseRow)
+
+  sum <- 0
+
+  for (factor in names(riskFactors)) {
+    if (factor != 'Risk.factor') {
+      sum <- sum + ConvertToNumeric(riskFactors[[factor]][diseaseIndex])
+    }
+  }
+
+  return(sum / (length(riskFactors) - 1))
+}
 
 # Define UI for app that draws a histogram ----
 ui <- fluidPage(
-
   # App title ----
   titlePanel("Disease detection - Expert System"),
 
@@ -74,47 +102,76 @@ ui <- fluidPage(
     ),
     column(6,
       h3("Plot with predictions"),
-           textOutput("result")
+         textOutput("noDiseases"),
+         plotlyOutput("chart")
     )
   )
 )
 
-# Define server logic required to draw a histogram ----
+# Define server logic required to draw a chart of predicted diseases ----
 server <- function(input, output) {
-  observeEvent(input$submit, {
-    occurringSymptoms <- GetOccurringSymptoms(input, availableSymptoms)
-    diseases <- NULL
+    observeEvent(input$submit, {
+      # Convert input to vector of occuring symptopms
+      occurringSymptoms <- GetOccurringSymptoms(input, availableSymptoms)
 
-    # Get predicted diseases
-    for (disease in names(predictionData)) {
-      pData <- predictionData[[disease]]
-      symptomTable <- GenerateSymptomTable(occurringSymptoms, pData$decisionTable)
-      res <- pData$predict(symptomTable, pData$rules, pData$cutValues)
-      if (res == 1) {
-        wI <- 0
-        wJ <- 0
+      # Init vectors
+      predictedDiseases <- NULL
+      predictedDiseasesP1 <- NULL
+      predictedDiseasesP2 <- NULL
 
-        for (symptom in availableSymptoms) {
-          weight <- GetSymptoDiseaseWeight(symptom, disease)
-          if (weight > 0) {
-            if (symptom %in% occurringSymptoms) wI <- wI + weight
-            else wJ <- wJ + weight
+      # Get predicted diseases
+      for (disease in names(predictionData)) {
+        pData <- predictionData[[disease]]
+        symptomTable <- GenerateSymptomTable(occurringSymptoms, pData$decisionTable)
+        res <- pData$predict(symptomTable, pData$rules, pData$cutValues)
+        if (res == 1) {
+          wI <- 0
+          wJ <- 0
+
+          for (symptom in availableSymptoms) {
+            weight <- GetSymptomDiseaseWeight(symptom, disease)
+            if (weight > 0) {
+              if (symptom %in% occurringSymptoms) wI <- wI + weight
+              else wJ <- wJ + weight
+            }
           }
-        }
 
-        p2 <- (wI / (wI + wJ)) * 100
+          risks <- GetDiseaseRisks(disease)
+          p1 <-  max(min(((2 * wI - wJ - risks$min) / (risks$max - risks$min)) * 100, 100), 0)
+          p2 <- max(min(((wI / (wI + wJ)) + GetDiseaseRiskFactorsAvg(disease)) * 100, 100), 0)
 
-        if (!is.nan(p2) && p2 > 10) {
-          info <- paste(disease, res, ' ', p2, '%')
-          diseases <- append(diseases, info)
-          print(info)
+          # Omit disease when fuzzy function result is low
+          if (is.na(p1) || is.na(p2) || is.nan(p1) || is.nan(p2) || p1 < 10 || p2 < 10)
+            next
+
+          predictedDiseases <- append(predictedDiseases, disease)
+          predictedDiseasesP1 <- append(predictedDiseasesP1, p1)
+          predictedDiseasesP2 <- append(predictedDiseasesP2, p2)
         }
       }
-    }
 
-    output$result <- renderText({ paste(diseases, sep = ', ') })
+      if (length(predictedDiseases) > 0) {
+        print(predictedDiseases)
+        output$noDiseases <- renderText({ '' })
 
-  })
+        data <- data.frame(predictedDiseases, predictedDiseasesP1, predictedDiseasesP2)
+
+        # Show chart with predicted diseases
+        output$chart <- renderPlotly({
+          plot_ly(
+            data,
+            x = ~predictedDiseases,
+            y = ~predictedDiseasesP1,
+            name = 'Fuzzy function 1',
+            type = 'bar'
+          ) %>% add_trace(y = ~predictedDiseasesP2, name = 'Fuzzy function 2') %>%
+            layout(xaxis = list(title = 'Predicted diseases'), yaxis = list(title = 'Percent of probability'), barmode = 'group')
+        })
+      } else {
+        output$noDiseases <- renderText({ 'No diseases predicted' })
+        output$chart <- renderPlotly({ NULL })
+      }
+    })
 }
 
 # Create Shiny app ----
