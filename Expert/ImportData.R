@@ -2,8 +2,8 @@
 # Script for parsing data provided by an expert
 
 # ----------------------------- Global parameters ------------------------------
-gInputDirectory <- "./Data"
-gOutputDirectory <- "./Output"
+gInputDirectory <- './Data'
+gOutputDirectory <- './Output'
 
 # ------------------------------ Import libraries ------------------------------ 
 library(RoughSets)
@@ -26,10 +26,10 @@ ReadDecisionTableFromCsv <- function(fileName) {
 
 GenerateDiscernibilityMatrix <- function(decisionTable) {
   # Generate discernibility matrix based on decision table
-  controlList <- list(type.relation = c("crisp"), 
-                      type.aggregation = c("crisp"),
-                      t.implicator = "lukasiewicz", 
-                      type.LU = "implicator.tnorm")
+  controlList <- list(type.relation = c('crisp'), 
+                      type.aggregation = c('crisp'),
+                      t.implicator = 'lukasiewicz', 
+                      type.LU = 'implicator.tnorm')
   
   discernibilityMatrix <- BC.discernibility.mat.RST(decisionTable)
   
@@ -61,22 +61,22 @@ ExportReductToCsv <- function(fileName, reduct) {
               col.names = FALSE, 
               row.names = FALSE, 
               quote = FALSE, 
-              sep = ";")
+              sep = ';')
 }
 
-fileName <- "asthma.csv"
+fileName <- 'asthma.csv'
 ParseExpertDataSingleFile <- function(fileName) {
   # Parse data provided by expert, generate reducts and export them to CSV file
   
   # Create decision table based on input from CSV file
   decisionTable <- ReadDecisionTableFromCsv(paste(gInputDirectory, fileName, 
-                                                                    sep = "/"))
+                                                                    sep = '/'))
   
   # Generate discernibility matrix
   discernibilityMatrix <- GenerateDiscernibilityMatrix(decisionTable)
   
   # Discretize decision table
-  cutValues <- D.discretization.RST(decisionTable, type.method = "unsupervised.quantiles")
+  cutValues <- D.discretization.RST(decisionTable, type.method = 'unsupervised.quantiles')
   decisionTable.discretized <- SF.applyDecTable(decisionTable, cutValues)
   
   # Generate reducts
@@ -95,7 +95,7 @@ ParseExpertDataSingleFile <- function(fileName) {
   reduct <- GetSingleReduct(reducts)
   
   # Export reduct to CSV as a list of symptoms
-  ExportReductToCsv(paste(gOutputDirectory, fileName, sep = "/"), reduct)
+  ExportReductToCsv(paste(gOutputDirectory, fileName, sep = '/'), reduct)
   
   # Return generated data
   return(list(
@@ -115,28 +115,49 @@ GenerateSymptomTable <- function(symptoms, decisionTable) {
   return(symptomTable)
 }
 
-ParseExpertDataAllFiles <- function(symptoms) {
+GetAvailableSymptoms <- function() {
+  fileList <- list.files(path = gInputDirectory,
+                         pattern = '*.csv',
+                         full.names = FALSE)
+
+  file <- read.csv(file = paste(gInputDirectory, fileList[1], sep = '/'), sep = ';')
+
+  symptoms <- names(file)
+  symptoms <- symptoms[-length(symptoms)]
+  return(symptoms)
+}
+
+ParseCoefficients <- function() {
+  directory <- paste(gInputDirectory, 'Coefficients', sep = '/')
+
+  return(read.csv(paste(directory, 'data.csv', sep = '/'), sep = ';'))
+
+}
+
+ParseExpertDataAllFiles <- function() {
   # Parse data provided by expert for all files from provided input directory,
   # generate reducts and export them to CSV files in provided output directory.
   
   # Get all CSV files from input directory
   fileList <- list.files(path = gInputDirectory, 
-                         pattern = "*.csv", 
+                         pattern = '*.csv', 
                          full.names = FALSE)
-  
+
+  # Result list
+  result <- list()
+
   # Parse all files
   for(fileName in fileList) {
-    print(paste("Parsing:", fileName, sep = " "))
     predictionData <- ParseExpertDataSingleFile(fileName)
-    
-    # Convert symptoms to decision table form and make prediction
-    symptomTable <- GenerateSymptomTable(symptoms, predictionData$decisionTable)
-    print(predictionData$predict(symptomTable, predictionData$rules, predictionData$cutValues))
+    diseaseName <- str_split(fileName, '\\.')[[1]][1]
+    result[[diseaseName]] <- predictionData
   }
+
+  return(result)
 }
 
 # ---------------------------------- Script ------------------------------------
-symptoms1 <- c("asthenia", "non.productive.cough", "pain.chest", "rale", "shortness.of.breath")
-symptoms2 <- c("constipation", "fever", "nausea", "pain.back", "throat.sore", "vomiting")
-ParseExpertDataAllFiles(symptoms1)
-ParseExpertDataAllFiles(symptoms2)
+# symptoms1 <- c('asthenia', 'non.productive.cough', 'pain.chest', 'rale', 'shortness.of.breath')
+# symptoms2 <- c('constipation', 'fever', 'nausea', 'pain.back', 'throat.sore', 'vomiting')
+# ParseExpertDataAllFiles(symptoms1)
+# ParseExpertDataAllFiles(symptoms2)
