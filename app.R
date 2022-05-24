@@ -119,10 +119,11 @@ ui <- fluidPage(
   fluidRow(
     # Select symptoms
     column(6,
-       h3("Select your risk factors"),
-       GenerateRiskFactorsMultiSelect(),
        h3("Select your symptoms"),
        GenerateInputs(availableSymptoms),
+           br(),
+         h3("Select your risk factors"),
+         GenerateRiskFactorsMultiSelect(),
        br(),
        actionButton("submit", "Submit"),
     ),
