@@ -145,6 +145,11 @@ ParseRiskFactors <- function() {
   return(ParseCoefficientFile('riskFactors.csv'))
 }
 
+GetRiskFactorNames <- function () {
+  names <- names(riskFactors)
+  return(names[names != 'Risk.factor'])
+}
+
 ParseExpertDataAllFiles <- function() {
   # Parse data provided by expert for all files from provided input directory,
   # generate reducts and export them to CSV files in provided output directory.

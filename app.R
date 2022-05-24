@@ -4,6 +4,7 @@
 library(shiny)
 library(stringr)
 library(plotly)
+library(shinyWidgets)
 
 source('ImportData.R')
 
@@ -12,6 +13,7 @@ availableSymptoms <- GetAvailableSymptoms()
 coefficients <- ParseCoefficients()
 risks <- ParseRisks()
 riskFactors <- ParseRiskFactors()
+riskFactorNames <- GetRiskFactorNames()
 
 # Parse input to list of occuring symptoms
 GetOccurringSymptoms <- function (input, symptopms) {
@@ -22,9 +24,13 @@ GetOccurringSymptoms <- function (input, symptopms) {
   )
 }
 
+ToHumanReadable <- function(string) {
+  return(str_to_title(str_replace_all(string, '\\.', ' ')))
+}
+
 # Generate select input for provided symptom id
 YesNoSelect <- function (inputId) {
-  readableLabel <- str_to_title(str_replace_all(inputId, '\\.', ' '))
+  readableLabel <- ToHumanReadable(inputId)
   return(
     selectInput(inputId, h5(readableLabel),
                 choices = list("Yes" = 'yes',
@@ -45,6 +51,22 @@ GenerateInputs <- function (symptopms) {
       })
     )
   }))
+}
+
+# Generate mutli select risk factors
+GenerateRiskFactorsMultiSelect <- function () {
+  return(
+    multiInput(
+      inputId = "riskFactors",
+      choiceValues = riskFactorNames,
+      choiceNames = lapply(riskFactorNames, FUN = ToHumanReadable),
+      label = "",
+      width = "100%",
+      options = list(
+        enable_search = FALSE
+      )
+    )
+  )
 }
 
 # Convert from char to numeric
@@ -72,16 +94,18 @@ GetDiseaseRisks <- function(disease) {
 }
 
 # Get disease risk factors average
-GetDiseaseRiskFactorsAvg <- function(disease) {
+GetDiseaseRiskFactorsAvg <- function(disease, occuringRiskFactors) {
+  if (length(occuringRiskFactors) == 0) {
+    return(0)
+  }
+
   diseaseRow <- riskFactors$Risk.factor;
   diseaseIndex <- match(disease, diseaseRow)
 
   sum <- 0
 
-  for (factor in names(riskFactors)) {
-    if (factor != 'Risk.factor') {
-      sum <- sum + ConvertToNumeric(riskFactors[[factor]][diseaseIndex])
-    }
+  for (factor in occuringRiskFactors) {
+    sum <- sum + ConvertToNumeric(riskFactors[[factor]][diseaseIndex])
   }
 
   return(sum / (length(riskFactors) - 1))
@@ -95,17 +119,20 @@ ui <- fluidPage(
   fluidRow(
     # Select symptoms
     column(6,
-      h3("Select your symptoms"),
-         GenerateInputs(availableSymptoms),
-         br(),
-         actionButton("submit", "Submit")
+       h3("Select your risk factors"),
+       GenerateRiskFactorsMultiSelect(),
+       h3("Select your symptoms"),
+       GenerateInputs(availableSymptoms),
+       br(),
+       actionButton("submit", "Submit"),
     ),
     column(6,
       h3("Plot with predictions"),
          textOutput("noDiseases"),
          plotlyOutput("chart")
     )
-  )
+  ),
+  br()
 )
 
 # Define server logic required to draw a chart of predicted diseases ----
@@ -113,6 +140,7 @@ server <- function(input, output) {
     observeEvent(input$submit, {
       # Convert input to vector of occuring symptopms
       occurringSymptoms <- GetOccurringSymptoms(input, availableSymptoms)
+      occurringRiskFactors <- input$riskFactors
 
       # Init vectors
       predictedDiseases <- NULL
@@ -138,7 +166,7 @@ server <- function(input, output) {
 
           risks <- GetDiseaseRisks(disease)
           p1 <-  max(min(((2 * wI - wJ - risks$min) / (risks$max - risks$min)) * 100, 100), 0)
-          p2 <- max(min(((wI / (wI + wJ)) + GetDiseaseRiskFactorsAvg(disease)) * 100, 100), 0)
+          p2 <- max(min(((wI / (wI + wJ)) + GetDiseaseRiskFactorsAvg(disease, occuringRiskFactors=occurringRiskFactors)) * 100, 100), 0)
 
           # Omit disease when fuzzy function result is low
           if (is.na(p1) || is.na(p2) || is.nan(p1) || is.nan(p2) || p1 < 10 || p2 < 10)
