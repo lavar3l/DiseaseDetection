@@ -13,7 +13,7 @@ availableSymptoms <- GetAvailableSymptoms()
 coefficients <- ParseCoefficients()
 risks <- ParseRisks()
 riskFactors <- ParseRiskFactors()
-riskFactorNames <- GetRiskFactorNames()
+riskFactorNames <- GetRiskFactorNames(riskFactors=riskFactors)
 
 # Parse input to list of occuring symptoms
 GetOccurringSymptoms <- function (input, symptopms) {

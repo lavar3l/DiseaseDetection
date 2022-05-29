@@ -145,7 +145,7 @@ ParseRiskFactors <- function() {
   return(ParseCoefficientFile('riskFactors.csv'))
 }
 
-GetRiskFactorNames <- function () {
+GetRiskFactorNames <- function (riskFactors) {
   names <- names(riskFactors)
   return(names[names != 'Risk.factor'])
 }
